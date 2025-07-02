@@ -85,7 +85,8 @@ const WebGazerAntiCheating: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [modalInstructionsText, setModalInstructionsText] = useState<string>('Please allow webcam access. Then, click the 9 dots that will appear on the screen to calibrate the eye tracker. Look at each dot as you click it.');
   const [calibrationStatusText, setCalibrationStatusText] = useState<string>('Waiting for webcam...');
-  const [clmConvergence, setClmConvergence] = useState<string>('-'); // Keeping for now, but its setter is not used.
+  // Removed setClmConvergence as it's not used. clmConvergence is now a static const.
+  const clmConvergence = '-';
   const [isExamStarted, setIsExamStarted] = useState<boolean>(false);
   const [showReport, setShowReport] = useState<boolean>(false);
   const [showHeatmap, setShowHeatmap] = useState<boolean>(false);
@@ -359,8 +360,10 @@ const WebGazerAntiCheating: React.FC = () => {
                 }
 
                 const dataURL = reportCanvas.toDataURL('image/png');
-                const heatmapBase64 = dataURL.split(',')[1];
-                zip.file("heatmap_with_screen_outline.png", heatmapBase66, { base64: true });
+                const heatmapBase64 = dataURL.split(',')[1]; // Correct variable name
+                if (heatmapBase64) { // Added check for robustness
+                    zip.file("heatmap_with_screen_outline.png", heatmapBase64, { base64: true });
+                }
             }
         } catch (error) {
             console.error("Error generating heatmap for report:", error);
