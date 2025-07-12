@@ -3,95 +3,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import h337 from 'heatmap.js';
 import JSZip from 'jszip';
-import Image from 'next/image'; // Import Next.js Image component
 
-// Add these interfaces at the top of your file, before the component.
-
-// For webgazer
 declare global {
   interface Window {
-    webgazer: {
-      setGazeListener: (callback: (data: { x: number; y: number; }, elapsedTime: number) => void) => Window['webgazer'];
-      setRegression: (type: string) => Window['webgazer'];
-      begin: () => Promise<void>;
-      showVideoPreview: (show: boolean) => Window['webgazer'];
-      showPredictionPoints: (show: boolean) => Window['webgazer'];
-      applyKalmanFilter: (apply: boolean) => Window['webgazer'];
-      end: () => void;
-      clearData: () => void;
-      resume: () => void;
-      pause: () => void;
-      getCurrentPrediction: () => { x: number; y: number; } | null; // Added based on common usage
-      // You might need to add more properties/methods if you use them and they are not listed
-    };
+    webgazer: any;
   }
 }
-
-// For heatmap.js (h337)
-interface HeatmapConfiguration {
-  container: HTMLElement;
-  radius?: number;
-  maxOpacity?: number;
-  minOpacity?: number;
-  blur?: number;
-}
-
-interface HeatmapPoint {
-  x: number;
-  y: number;
-  value: number;
-}
-
-interface HeatmapData {
-  max: number;
-  data: HeatmapPoint[];
-}
-
-interface HeatmapInstance {
-  setData: (data: HeatmapData) => void;
-  // Add other methods if you use them, e.g., addData, _renderer, etc.
-}
-
-interface H337Lib { // Renamed from H337 to avoid conflict with imported var
-  create: (config: HeatmapConfiguration) => HeatmapInstance;
-}
-
-// Define the type for gaze data
-interface GazeData {
-  x: number;
-  y: number;
-  timestamp: number;
-  offScreen: boolean;
-  snapshot: string | null;
-  snapshotFilename: string | null;
-  eventTime: Date;
-}
-
-// Define the type for calibration points
-interface CalibrationPoint {
-  x: string;
-  y: string;
-  status: 'active' | 'inactive' | 'clicked';
-}
-
 
 const WebGazerAntiCheating: React.FC = () => {
   const [isTracking, setIsTracking] = useState<boolean>(false);
   const [offScreenEvents, setOffScreenEvents] = useState<number>(0);
-  const [allGazeData, setAllGazeData] = useState<GazeData[]>([]);
+  const [allGazeData, setAllGazeData] = useState<any[]>([]);
   const [webgazerReady, setWebgazerReady] = useState<boolean>(false);
-  const [calibrationPoints, setCalibrationPoints] = useState<CalibrationPoint[]>([]);
+  const [calibrationPoints, setCalibrationPoints] = useState<any[]>([]);
   const [currentCalibrationPointIndex, setCurrentCalibrationPointIndex] = useState<number>(0);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [modalInstructionsText, setModalInstructionsText] = useState<string>('Please allow webcam access. Then, click the 9 dots that will appear on the screen to calibrate the eye tracker. Look at each dot as you click it.');
   const [calibrationStatusText, setCalibrationStatusText] = useState<string>('Waiting for webcam...');
-  // Removed setClmConvergence as it's not used. clmConvergence is now a static const.
-  const clmConvergence = '-';
+  const [clmConvergence, setClmConvergence] = useState<string>('-');
   const [isExamStarted, setIsExamStarted] = useState<boolean>(false);
   const [showReport, setShowReport] = useState<boolean>(false);
   const [showHeatmap, setShowHeatmap] = useState<boolean>(false);
 
-  const heatmapInstanceRef = useRef<HeatmapInstance | null>(null);
+  const heatmapInstanceRef = useRef<any>(null);
   const gazeDotRef = useRef<HTMLDivElement>(null);
   const heatmapContainerRef = useRef<HTMLDivElement>(null);
   const offScreenLogRef = useRef<HTMLUListElement>(null);
@@ -112,11 +46,8 @@ const WebGazerAntiCheating: React.FC = () => {
         return;
       }
 
-      // Type assertion for h337
-      const typedH337 = h337 as unknown as H337Lib;
-
-      if (typeof typedH337 !== 'undefined' && heatmapContainerRef.current) {
-        heatmapInstanceRef.current = typedH337.create({
+      if (typeof h337 !== 'undefined' && heatmapContainerRef.current) {
+        heatmapInstanceRef.current = h337.create({
           container: heatmapContainerRef.current,
           radius: 35,
           maxOpacity: 0.7,
@@ -143,12 +74,12 @@ const WebGazerAntiCheating: React.FC = () => {
     script.src = 'https://webgazer.cs.brown.edu/webgazer.js';
     script.async = true;
     script.onload = () => {
-        console.log("WebGazer script loaded successfully!");
-        initializeWebGazer();
+      console.log("WebGazer script loaded successfully!");
+      initializeWebGazer();
     };
     script.onerror = () => {
-        console.error("Failed to load WebGazer script.");
-        setCalibrationStatusText('Error: WebGazer.js script failed to download.');
+      console.error("Failed to load WebGazer script.");
+      setCalibrationStatusText('Error: WebGazer.js script failed to download.');
     };
 
     document.body.appendChild(script);
@@ -163,36 +94,37 @@ const WebGazerAntiCheating: React.FC = () => {
     };
   }, []);
 
-  const gazeListener = (data: { x: number; y: number; }, elapsedTime: number) => {
+  const gazeListener = (data: { x: any; y: any; }, elapsedTime: any) => {
     if (!data || !isTrackingRef.current) {
-        if (gazeDotRef.current) gazeDotRef.current.style.display = 'none';
-        return;
+      if (gazeDotRef.current) gazeDotRef.current.style.display = 'none';
+      return;
     };
-
     const x = Math.round(data.x);
     const y = Math.round(data.y);
+    if (isTrackingRef.current) {
+      if (gazeDotRef.current) gazeDotRef.current.style.display = 'none';
+    } else {
 
-    if (gazeDotRef.current) {
-      gazeDotRef.current.style.left = `${x - gazeDotRef.current.offsetWidth / 2}px`;
-      gazeDotRef.current.style.top = `${y - gazeDotRef.current.offsetHeight / 2}px`;
-      gazeDotRef.current.style.display = 'block';
+      if (gazeDotRef.current) {
+        gazeDotRef.current.style.left = `${x - gazeDotRef.current.offsetWidth / 2}px`;
+        gazeDotRef.current.style.top = `${y - gazeDotRef.current.offsetHeight / 2}px`;
+        gazeDotRef.current.style.display = 'block';
+      }
     }
 
-    const isOffScreen = x < 0 || x > window.innerWidth || y < 0 || y > window.innerHeight; // Changed to const
+    let isOffScreen = x < 0 || x > window.innerWidth || y < 0 || y > window.innerHeight;
     let snapshotDataUrl: string | null = null;
 
     if (isOffScreen) {
       setOffScreenEvents(prev => prev + 1);
       const videoElement = document.getElementById('webgazerVideoFeed') as HTMLVideoElement;
       if (videoElement) {
-          const snapshotCanvas = document.createElement('canvas');
-          snapshotCanvas.width = videoElement.videoWidth / 5;
-          snapshotCanvas.height = videoElement.videoHeight / 5;
-          const snapshotContext = snapshotCanvas.getContext('2d');
-          if (snapshotContext) { // Check if context is not null
-            snapshotContext.drawImage(videoElement, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
-            snapshotDataUrl = snapshotCanvas.toDataURL('image/jpeg', 0.5);
-          }
+        const snapshotCanvas = document.createElement('canvas');
+        snapshotCanvas.width = videoElement.videoWidth / 5;
+        snapshotCanvas.height = videoElement.videoHeight / 5;
+        const snapshotContext = snapshotCanvas.getContext('2d');
+        snapshotContext?.drawImage(videoElement, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+        snapshotDataUrl = snapshotCanvas.toDataURL('image/jpeg', 0.5);
       }
     }
 
@@ -210,22 +142,22 @@ const WebGazerAntiCheating: React.FC = () => {
 
   useEffect(() => {
     if (showHeatmap && heatmapInstanceRef.current && allGazeData.length > 0) {
-        console.log("Rendering heatmap with data points:", allGazeData.length);
-        const pointsForDisplay = allGazeData
-            .filter(p => !p.offScreen)
-            .map(p => ({ x: Math.round(p.x), y: Math.round(p.y), value: 10 }));
+      console.log("Rendering heatmap with data points:", allGazeData.length);
+      const pointsForDisplay = allGazeData
+        .filter(p => !p.offScreen)
+        .map(p => ({ x: Math.round(p.x), y: Math.round(p.y), value: 10 }));
 
-        if (pointsForDisplay.length > 0) {
-            heatmapInstanceRef.current.setData({ max: 100, data: pointsForDisplay });
-        }
+      if (pointsForDisplay.length > 0) {
+        heatmapInstanceRef.current.setData({ max: 100, data: pointsForDisplay });
+      }
     }
   }, [showHeatmap, allGazeData]);
 
   const handleStartCalibration = () => {
-    const points: CalibrationPoint[] = [ // Explicitly type points
-      { x: '5%', y: '5%', status: 'inactive' }, { x: '50%', y: '5%', status: 'inactive' }, { x: '95%', y: '5%', status: 'inactive' },
-      { x: '5%', y: '50%', status: 'inactive' }, { x: '50%', y: '50%', status: 'inactive' }, { x: '95%', y: '50%', status: 'inactive' },
-      { x: '5%', y: '95%', status: 'inactive' }, { x: '50%', y: '95%', status: 'inactive' }, { x: '95%', y: '95%', status: 'inactive' },
+    const points = [
+      { x: '5%', y: '5%' }, { x: '50%', y: '5%' }, { x: '95%', y: '5%' },
+      { x: '5%', y: '50%' }, { x: '50%', y: '50%' }, { x: '95%', y: '50%' },
+      { x: '5%', y: '95%' }, { x: '50%', y: '95%' }, { x: '95%', y: '95%' },
     ];
     setCalibrationPoints(points.map((p, index) => ({ ...p, status: index === 0 ? 'active' : 'inactive' })));
     setCurrentCalibrationPointIndex(0);
@@ -266,7 +198,7 @@ const WebGazerAntiCheating: React.FC = () => {
     setOffScreenEvents(0);
     snapshotFileCounter.current = 0;
     if (heatmapInstanceRef.current) {
-        heatmapInstanceRef.current.setData({ max: 1, data: [] });
+      heatmapInstanceRef.current.setData({ max: 1, data: [] });
     }
     if (webgazerReady) window.webgazer.resume();
   };
@@ -297,79 +229,116 @@ const WebGazerAntiCheating: React.FC = () => {
 
     let reportContent = `Exam Report\nTotal Off-Screen Events: ${offScreenEvents}\n\n`;
     allGazeData.filter(e => e.offScreen).forEach((event, index) => {
-        let eventDetail = `${index + 1}. Time: ${event.eventTime.toLocaleTimeString()}, Coords: (${event.x}, ${event.y})`;
-        if (event.snapshotFilename) {
-            eventDetail += ` (Snapshot: ${event.snapshotFilename})`;
-        }
-        reportContent += eventDetail + '\n';
+      let eventDetail = `${index + 1}. Time: ${event.eventTime.toLocaleTimeString()}, Coords: (${event.x}, ${event.y})`;
+      if (event.snapshotFilename) {
+        eventDetail += ` (Snapshot: ${event.snapshotFilename})`;
+      }
+      reportContent += eventDetail + '\n';
     });
     zip.file("report.txt", reportContent);
 
     const imgFolder = zip.folder("snapshots");
     allGazeData.filter(e => e.snapshot).forEach(event => {
-        const base64Data = event.snapshot!.split(',')[1]; // Use non-null assertion as filter already checks for snapshot
-        if (imgFolder && event.snapshotFilename) {
-            imgFolder.file(event.snapshotFilename, base64Data, { base64: true });
-        }
+      const base64Data = event.snapshot.split(',')[1];
+      if (imgFolder && event.snapshotFilename) {
+        imgFolder.file(event.snapshotFilename, base64Data, { base64: true });
+      }
     });
 
     if (allGazeData.length > 0) {
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        const margin = 300;
-        const extendedCanvasWidth = screenWidth + 2 * margin;
-        const extendedCanvasHeight = screenHeight + 2 * margin;
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      const margin = 300;
+      const extendedCanvasWidth = screenWidth + 2 * margin;
+      const extendedCanvasHeight = screenHeight + 2 * margin;
 
-        const tempContainer = document.createElement('div');
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-99999px';
-        tempContainer.style.top = '-99999px';
-        tempContainer.style.width = `${extendedCanvasWidth}px`;
-        tempContainer.style.height = `${extendedCanvasHeight}px`;
-        document.body.appendChild(tempContainer);
+      // Calculate the four corners of the screen relative to the extended canvas
+      const screenCornersAdjusted = {
+        topLeft: { x: margin, y: margin },
+        topRight: { x: margin + screenWidth, y: margin },
+        bottomLeft: { x: margin, y: margin + screenHeight },
+        bottomRight: { x: margin + screenWidth, y: margin + screenHeight }
+      };
 
-        try {
-            const tempHeatmapInstance = (h337 as unknown as H337Lib).create({ // Type assertion here
-                container: tempContainer,
-                radius: 35,
-            });
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-99999px';
+      tempContainer.style.top = '-99999px';
+      tempContainer.style.width = `${extendedCanvasWidth}px`;
+      tempContainer.style.height = `${extendedCanvasHeight}px`;
+      document.body.appendChild(tempContainer);
 
-            const reportGazePoints = allGazeData.map((p) => ({
-                x: Math.round(p.x) + margin,
-                y: Math.round(p.y) + margin,
-                value: 10,
-            }));
+      try {
+        const tempHeatmapInstance = h337.create({
+          container: tempContainer,
+          radius: 35,
+        });
 
-            tempHeatmapInstance.setData({ max: 100, data: reportGazePoints });
+        // Prepare data for JSON, now including margin offset for global plotting context
+        const reportGazePoints = allGazeData.map((p) => ({
+          x: Math.round(p.x), // Original coordinates relative to viewport
+          y: Math.round(p.y), // Original coordinates relative to viewport
+          value: 10,
+          timestamp: p.timestamp,
+          offScreen: p.offScreen,
+          // Adjusted coordinates for plotting on the extended canvas
+          x_adjusted_for_plot: Math.round(p.x) + margin,
+          y_adjusted_for_plot: Math.round(p.y) + margin,
+        }));
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+        // Add heatmap data as JSON
+        const heatmapData = {
+          // Dimensions of the original browser viewport
+          originalScreenWidth: screenWidth,
+          originalScreenHeight: screenHeight,
+          // Dimensions of the extended canvas used for plotting (if needed for context)
+          extendedCanvasWidth: extendedCanvasWidth,
+          extendedCanvasHeight: extendedCanvasHeight,
+          // The offset (margin) applied when plotting the screen content within the extended canvas
+          plotMarginOffset: margin,
+          // The four corner coordinates of the screen relative to the extended canvas
+          screenCornersInPlotCoords: screenCornersAdjusted,
+          gazePoints: reportGazePoints
+        };
+        zip.file("gaze_heatmap_data.json", JSON.stringify(heatmapData, null, 2));
 
-            const reportCanvas = tempContainer.querySelector('canvas');
-            if (reportCanvas) {
-                const ctx = reportCanvas.getContext('2d');
-                if (ctx) {
-                    ctx.strokeStyle = 'rgba(100, 100, 100, 0.8)';
-                    ctx.lineWidth = 3;
-                    ctx.setLineDash([10, 5]);
-                    ctx.strokeRect(margin, margin, screenWidth, screenHeight);
-                    ctx.setLineDash([]);
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.font = '16px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Screen Area', margin + screenWidth / 2, margin + 20);
-                }
 
-                const dataURL = reportCanvas.toDataURL('image/png');
-                const heatmapBase64 = dataURL.split(',')[1]; // Correct variable name
-                if (heatmapBase64) { // Added check for robustness
-                    zip.file("heatmap_with_screen_outline.png", heatmapBase64, { base64: true });
-                }
-            }
-        } catch (error) {
-            console.error("Error generating heatmap for report:", error);
-        } finally {
-            document.body.removeChild(tempContainer);
+        // For the heatmap image generation, use adjusted coordinates
+        const heatmapImagePoints = allGazeData.map((p) => ({
+          x: Math.round(p.x) + margin,
+          y: Math.round(p.y) + margin,
+          value: 10,
+        }));
+
+        tempHeatmapInstance.setData({ max: 100, data: heatmapImagePoints });
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const reportCanvas = tempContainer.querySelector('canvas');
+        if (reportCanvas) {
+          const ctx = reportCanvas.getContext('2d');
+          if (ctx) {
+            ctx.strokeStyle = 'rgba(100, 100, 100, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([10, 5]);
+            // Draw the rectangle using the calculated corners (or margin, width, height)
+            ctx.strokeRect(screenCornersAdjusted.topLeft.x, screenCornersAdjusted.topLeft.y, screenWidth, screenHeight);
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Screen Area', screenCornersAdjusted.topLeft.x + screenWidth / 2, screenCornersAdjusted.topLeft.y + 20);
+          }
+
+          const dataURL = reportCanvas.toDataURL('image/png');
+          const heatmapBase64 = dataURL.split(',')[1];
+          zip.file("heatmap_with_screen_outline.png", heatmapBase64, { base64: true });
         }
+      } catch (error) {
+        console.error("Error generating heatmap for report:", error);
+      } finally {
+        document.body.removeChild(tempContainer);
+      }
     }
 
     const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -395,7 +364,6 @@ const WebGazerAntiCheating: React.FC = () => {
                 <span key={i} className={`h-2.5 w-2.5 rounded-full ${calibrationPoints[i]?.status === 'active' ? 'bg-yellow-400' : calibrationPoints[i]?.status === 'clicked' ? 'bg-green-500' : 'bg-gray-300'}`}></span>
               ))}
             </div>
-            {/* If clmConvergence is always '-', consider removing the state and just hardcoding the text */}
             <p className="mb-2 text-slate-600">CLM Convergence: {clmConvergence}</p>
             <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
               <button onClick={handleStartCalibration} disabled={!webgazerReady} className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg shadow-md disabled:bg-gray-400">
@@ -421,25 +389,25 @@ const WebGazerAntiCheating: React.FC = () => {
       <div className="container mx-auto p-8 space-y-8">
         <h1 className="text-4xl font-bold text-center text-slate-700">Anti-Cheating Eye Tracking</h1>
         <div className="flex justify-center">
-            <div className="bg-white p-6 rounded-xl shadow-xl w-full sm:w-auto">
-                <h2 className="text-xl font-semibold mb-4 text-slate-600">Controls</h2>
-                <div className="flex flex-wrap gap-3">
-                    <button onClick={handleStartExam} disabled={isExamStarted || !webgazerReady || currentCalibrationPointIndex < TOTAL_CALIBRATION_POINTS} className="flex-grow bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-5 rounded-lg shadow-md disabled:bg-gray-400">
-                        Start Exam
-                    </button>
-                    <button onClick={handleStopExam} disabled={!isExamStarted} className="flex-grow bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-5 rounded-lg shadow-md disabled:bg-gray-400">
-                        Stop Exam & Report
-                    </button>
-                    <button onClick={handleRecalibrate} className="flex-grow bg-yellow-500 hover:bg-yellow-600 text-black font-medium py-2 px-5 rounded-lg shadow-md">
-                        Recalibrate
-                    </button>
-                    {showReport && (
-                        <button onClick={generateAndDownloadZipReport} className="flex-grow bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-5 rounded-lg shadow-md">
-                            Download Report (ZIP)
-                        </button>
-                    )}
-                </div>
+          <div className="bg-white p-6 rounded-xl shadow-xl w-full sm:w-auto">
+            <h2 className="text-xl font-semibold mb-4 text-slate-600">Controls</h2>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={handleStartExam} disabled={isExamStarted || !webgazerReady || currentCalibrationPointIndex < TOTAL_CALIBRATION_POINTS} className="flex-grow bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-5 rounded-lg shadow-md disabled:bg-gray-400">
+                Start Exam
+              </button>
+              <button onClick={handleStopExam} disabled={!isExamStarted} className="flex-grow bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-5 rounded-lg shadow-md disabled:bg-gray-400">
+                Stop Exam & Report
+              </button>
+              <button onClick={handleRecalibrate} className="flex-grow bg-yellow-500 hover:bg-yellow-600 text-black font-medium py-2 px-5 rounded-lg shadow-md">
+                Recalibrate
+              </button>
+              {showReport && (
+                <button onClick={generateAndDownloadZipReport} className="flex-grow bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-5 rounded-lg shadow-md">
+                  Download Report (ZIP)
+                </button>
+              )}
             </div>
+          </div>
         </div>
 
         <div className="bg-white p-8 rounded-xl shadow-xl min-h-[300px]">
@@ -457,24 +425,15 @@ const WebGazerAntiCheating: React.FC = () => {
                 {allGazeData.filter(e => e.offScreen).map((event, index) => (
                   <li key={index} className="flex items-center">
                     {`Off-screen gaze at ${event.eventTime.toLocaleTimeString()} (x: ${event.x}, y: ${event.y})`}
-                    {event.snapshot && (
-                      <Image
-                        src={event.snapshot}
-                        alt="snapshot"
-                        width={80} // Corresponds to w-20
-                        height={64} // Corresponds to h-16
-                        className="object-cover border ml-4 rounded"
-                        unoptimized // Required for data URLs
-                      />
-                    )}
+                    {event.snapshot && <img src={event.snapshot} alt="snapshot" className="w-20 h-16 object-cover border ml-4 rounded" />}
                   </li>
                 ))}
               </ul>
             </div>
             <h3 className="text-xl font-semibold my-3">Gaze Heatmap:</h3>
-             <div className="bg-slate-100 h-64 rounded-md flex items-center justify-center text-slate-400">
-                Heatmap is shown as a full-screen overlay.
-             </div>
+            <div className="bg-slate-100 h-64 rounded-md flex items-center justify-center text-slate-400">
+              Heatmap is shown as a full-screen overlay.
+            </div>
           </div>
         )}
       </div>
